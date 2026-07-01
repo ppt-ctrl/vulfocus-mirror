@@ -1,0 +1,80 @@
+name: Create Vulfocus Image Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.release.outputs.upload_url }}
+    steps:
+      - name: Create Release
+        id: release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: vulfocus-images
+          name: "Vulfocus Vulnerability Images (tar.gz)"
+          body: "Docker images packaged as tar.gz for Kali offline import. Download all, scp to Kali, run docker load."
+          draft: false
+
+  package:
+    needs: create-release
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        include:
+          - short: weblogic-cve_2020_2883
+            full: vulfocus/weblogic-cve_2020_2883:latest
+          - short: elasticsearch-cve_2014_3120
+            full: vulfocus/elasticsearch-cve_2014_3120:latest
+          - short: jboss-cve_2017_12149
+            full: vulfocus/jboss-cve_2017_12149:latest
+          - short: shiro-721
+            full: vulfocus/shiro-721:latest
+          - short: nexus-cve_2019_5475
+            full: vulfocus/nexus-cve_2019_5475:latest
+          - short: drupal-cve_2019_6340
+            full: vulfocus/drupal-cve_2019_6340:latest
+          - short: jenkins-cve_2018_1000861
+            full: vulfocus/jenkins-cve_2018_1000861:latest
+          - short: django-cve_2019_14234
+            full: vulfocus/django-cve_2019_14234:latest
+          - short: gitlab-cve_2021_22205
+            full: vulfocus/gitlab-cve_2021_22205:latest
+          - short: webmin_cve-2022-0824
+            full: vulfocus/webmin_cve-2022-0824:latest
+          - short: tomcat-cve_2017_12615
+            full: vulfocus/tomcat-cve_2017_12615:latest
+          - short: atlassian_crowd-cve_2019_11580
+            full: vulfocus/atlassian_crowd-cve_2019_11580:latest
+          - short: nostromo-cve_2019_16278
+            full: vulfocus/nostromo-cve_2019_16278:latest
+          - short: solr-cve_2019_17558
+            full: vulfocus/solr-cve_2019_17558:latest
+          - short: weblogic-cve_2018_3246
+            full: vulfocus/weblogic-cve_2018_3246:latest
+
+    steps:
+      - name: Pull, save, compress
+        run: |
+          echo "=== Pulling ${{ matrix.full }} ==="
+          docker pull "${{ matrix.full }}"
+          echo "=== Saving ${{ matrix.short }} ==="
+          docker save "${{ matrix.full }}" -o "${{ matrix.short }}.tar"
+          gzip -9 "${{ matrix.short }}.tar"
+          echo "=== Result ==="
+          ls -lh "${{ matrix.short }}.tar.gz"
+
+      - name: Upload to Release
+        run: |
+          gh release upload vulfocus-images "${{ matrix.short }}.tar.gz" \
+            --repo "${{ github.repository }}" \
+            --clobber
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
