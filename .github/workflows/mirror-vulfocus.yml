@@ -1,0 +1,72 @@
+name: Mirror Vulfocus Images to ghcr.io
+
+on:
+  workflow_dispatch:
+
+permissions:
+  packages: write
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - vulfocus/log4j2-rce:latest
+          - vulfocus/struts2-s2-048:latest
+          - vulfocus/spring-gateway-cve_2022_22947:latest
+          - vulfocus/weblogic-cve_2020_2883:latest
+          - vulfocus/shiro-721:latest
+          - vulfocus/thinkphp-5-rce:latest
+          - vulfocus/fastjson-1-2-24:latest
+          - vulfocus/discuz-wooyun-2010-080723:latest
+          - vulfocus/jboss-cve_2017_12149:latest
+          - vulfocus/wordpress-pwnscriptum:latest
+          - vulfocus/redis-unauth:latest
+          - vulfocus/phpmyadmin-cve_2018_12613:latest
+          - vulfocus/drupal-cve_2019_6340:latest
+          - vulfocus/django-cve_2019_14234:latest
+          - vulfocus/elasticsearch-cve_2014_3120:latest
+          - vulfocus/nexus-cve_2019_5475:latest
+          - vulfocus/tomcat-cve_2017_12615:latest
+          - vulfocus/jenkins-cve_2018_1000861:latest
+          - vulfocus/spring-cloud-function-spel:latest
+          - vulfocus/gitlab-cve_2021_22205:latest
+          - vulfocus/confluence-cve_2022_26134:latest
+          - vulfocus/flink-upload:latest
+          - vulfocus/nacos-cve_2021_29441:latest
+          - vulfocus/ghostscript-cve_2019_6116:latest
+          - vulfocus/solr-cve_2019_17558:latest
+          - vulfocus/weblogic-cve_2018_3246:latest
+          - vulfocus/nostromo-cve_2019_16278:latest
+          - vulfocus/atlassian_crowd-cve_2019_11580:latest
+          - vulfocus/webmin_cve-2022-0824:latest
+          - vulfocus/discuz-ml-rce:latest
+
+    steps:
+      - name: Login to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Mirror ${{ matrix.image }}
+        run: |
+          IMAGE="${{ matrix.image }}"
+          # Replace / with - in image name for ghcr.io path
+          SAFE_NAME="${IMAGE//\//-}"
+          DEST="ghcr.io/${{ github.repository_owner }}/vulfocus-mirror/${SAFE_NAME}"
+          
+          echo "Pulling $IMAGE from Docker Hub..."
+          docker pull "$IMAGE"
+          
+          echo "Tagging as $DEST..."
+          docker tag "$IMAGE" "$DEST"
+          
+          echo "Pushing to ghcr.io..."
+          docker push "$DEST"
+          
+          echo "Done: $DEST"
